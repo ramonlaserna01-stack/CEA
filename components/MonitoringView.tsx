@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Card from './common/Card';
-import { mockDocuments } from '../constants';
+import { getDocuments } from '../services/db';
 import { Document, DocumentStatus, ReadingStage } from '../types';
 
 const getStatusColor = (status: DocumentStatus) => {
@@ -23,11 +23,52 @@ const getStageColor = (stage: ReadingStage) => {
     }
 }
 
+const FILTERS: { label: string, status: DocumentStatus | 'All' }[] = [
+    { label: 'All', status: 'All' },
+    { label: 'Approved', status: DocumentStatus.APPROVED },
+    { label: 'In Review', status: DocumentStatus.REVIEW },
+    { label: 'Draft', status: DocumentStatus.DRAFT },
+    { label: 'Rejected', status: DocumentStatus.REJECTED },
+];
+
 const MonitoringView: React.FC = () => {
+    const [documents, setDocuments] = useState<Document[]>([]);
+    const [activeFilter, setActiveFilter] = useState<DocumentStatus | 'All'>('All');
+
+    useEffect(() => {
+        setDocuments(getDocuments().filter(d => d.status !== DocumentStatus.ARCHIVED));
+    }, []);
+
+    const filteredDocuments = useMemo(() => {
+        if (activeFilter === 'All') {
+            return documents;
+        }
+        return documents.filter(doc => doc.status === activeFilter);
+    }, [documents, activeFilter]);
+
+
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-text-primary">Monitoring</h1>
             <Card>
+                <div className="mb-4 border-b border-gray-200">
+                    <div className="flex -mb-px space-x-4">
+                        {FILTERS.map(filter => (
+                            <button 
+                                key={filter.label}
+                                onClick={() => setActiveFilter(filter.status)}
+                                className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors ${
+                                    activeFilter === filter.status
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-text-secondary hover:text-text-primary hover:border-gray-300'
+                                }`}
+                            >
+                                {filter.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
@@ -41,7 +82,7 @@ const MonitoringView: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {mockDocuments.map((doc: Document) => (
+                            {filteredDocuments.map((doc: Document) => (
                                 <tr key={doc.id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{doc.id}</td>
                                     <td className="px-6 py-4 whitespace-normal max-w-sm text-sm text-text-primary">{doc.title}</td>
@@ -68,6 +109,11 @@ const MonitoringView: React.FC = () => {
                             ))}
                         </tbody>
                     </table>
+                     {filteredDocuments.length === 0 && (
+                        <div className="text-center py-12">
+                            <p className="text-sm text-text-secondary">No documents match the selected filter.</p>
+                        </div>
+                    )}
                 </div>
             </Card>
         </div>

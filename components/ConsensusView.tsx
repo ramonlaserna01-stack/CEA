@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from './common/Card';
-import { mockDocuments } from '../constants';
+import { getDocuments, saveDocuments } from '../services/db';
 import { Document, ReadingStage } from '../types';
 
 type VoteOption = 'approve' | 'disapprove' | 'abstain';
@@ -12,21 +12,24 @@ const VoteCounter: React.FC<{ label: string, count: number, color: string }> = (
     </div>
 );
 
-const VotingCard: React.FC<{ doc: Document }> = ({ doc }) => {
+const VotingCard: React.FC<{ doc: Document, onVote: (updatedDoc: Document) => void }> = ({ doc, onVote }) => {
     const [document, setDocument] = useState(doc);
     const [userVote, setUserVote] = useState<VoteOption | null>(null);
 
     const handleVote = (voteType: VoteOption) => {
         if (userVote) return; // Can't vote twice
 
-        setDocument(prevDoc => ({
-            ...prevDoc,
+        const updatedDoc = {
+            ...document,
             votes: {
-                ...prevDoc.votes,
-                [voteType]: prevDoc.votes[voteType] + 1,
+                ...document.votes,
+                [voteType]: document.votes[voteType] + 1,
             }
-        }));
+        };
+
+        setDocument(updatedDoc);
         setUserVote(voteType);
+        onVote(updatedDoc);
     };
 
     const getButtonClasses = (voteType: VoteOption) => {
@@ -71,7 +74,19 @@ const VotingCard: React.FC<{ doc: Document }> = ({ doc }) => {
 };
 
 const ConsensusView: React.FC = () => {
-    const documentsForVoting = mockDocuments.filter(
+    const [documents, setDocuments] = useState<Document[]>([]);
+
+    useEffect(() => {
+        setDocuments(getDocuments());
+    }, []);
+
+    const handleVote = (updatedDoc: Document) => {
+        const updatedDocuments = documents.map(d => d.id === updatedDoc.id ? updatedDoc : d);
+        saveDocuments(updatedDocuments);
+        setDocuments(updatedDocuments);
+    };
+
+    const documentsForVoting = documents.filter(
         doc => doc.stage === ReadingStage.SECOND || doc.stage === ReadingStage.THIRD
     );
 
@@ -81,7 +96,7 @@ const ConsensusView: React.FC = () => {
             {documentsForVoting.length > 0 ? (
                 <div className="space-y-6">
                     {documentsForVoting.map(doc => (
-                        <VotingCard key={doc.id} doc={doc} />
+                        <VotingCard key={doc.id} doc={doc} onVote={handleVote} />
                     ))}
                 </div>
             ) : (

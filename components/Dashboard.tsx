@@ -1,11 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Card from './common/Card';
-import { mockDocuments } from '../constants';
-import { DocumentStatus } from '../types';
+import { getDocuments } from '../services/db';
+import { Document, DocumentStatus } from '../types';
 
 const Dashboard: React.FC = () => {
-    const statusCounts = mockDocuments.reduce((acc, doc) => {
+    const [documents, setDocuments] = useState<Document[]>([]);
+
+    useEffect(() => {
+        setDocuments(getDocuments());
+    }, []);
+
+    const statusCounts = documents.reduce((acc, doc) => {
         acc[doc.status] = (acc[doc.status] || 0) + 1;
         return acc;
     }, {} as Record<DocumentStatus, number>);
@@ -38,7 +44,7 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card>
                     <h3 className="text-text-secondary font-semibold">Total Documents</h3>
-                    <p className="text-4xl font-bold text-primary">{mockDocuments.length}</p>
+                    <p className="text-4xl font-bold text-primary">{documents.length}</p>
                 </Card>
                 <Card>
                     <h3 className="text-text-secondary font-semibold">In Review</h3>

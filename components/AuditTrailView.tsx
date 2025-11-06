@@ -1,16 +1,21 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from './common/Card';
-import { mockAuditLogs } from '../constants';
+import { getAuditLogs } from '../services/db';
 import { AuditLog } from '../types';
 
 const AuditTrailView: React.FC = () => {
+    const [logs, setLogs] = useState<AuditLog[]>([]);
+
+    useEffect(() => {
+        setLogs(getAuditLogs());
+    }, []);
+    
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-text-primary">Audit Trail</h1>
             <Card>
                 <ul className="divide-y divide-gray-200">
-                    {mockAuditLogs.map((log: AuditLog) => (
+                    {logs.map((log: AuditLog) => (
                         <li key={log.id} className="py-4">
                             <div className="flex space-x-3">
                                 <img className="h-10 w-10 rounded-full" src={log.userAvatar} alt={`${log.user}'s avatar`} />

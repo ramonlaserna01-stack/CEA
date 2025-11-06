@@ -1,5 +1,5 @@
 import React from 'react';
-import { NAV_ITEMS, DashboardIcon, DraftingIcon, MonitoringIcon, AuditIcon, ArchiveIcon, UsersIcon } from '../constants';
+import { NAV_ITEMS, DashboardIcon, DraftingIcon, MonitoringIcon, AuditIcon, ArchiveIcon, UsersIcon, ReportsIcon, DocumentIcon } from '../constants';
 import { View } from '../types';
 
 interface SidebarProps {
@@ -9,9 +9,11 @@ interface SidebarProps {
 
 const ICONS: { [key in View]: React.FC<React.SVGProps<SVGSVGElement>> } = {
   'Dashboard': DashboardIcon,
+  'Reports': ReportsIcon,
   'Drafting': DraftingIcon,
   'Consensus': UsersIcon,
   'Monitoring': MonitoringIcon,
+  'Documents': DocumentIcon,
   'Audit Trail': AuditIcon,
   'Archive': ArchiveIcon
 };

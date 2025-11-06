@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type View = 'Dashboard' | 'Drafting' | 'Consensus' | 'Monitoring' | 'Audit Trail' | 'Archive';
+export type View = 'Dashboard' | 'Drafting' | 'Consensus' | 'Monitoring' | 'Audit Trail' | 'Archive' | 'Reports' | 'Documents';
 
 export enum DocumentStatus {
   DRAFT = 'Draft',

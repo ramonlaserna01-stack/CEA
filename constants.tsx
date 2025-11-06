@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Document, DocumentStatus, AuditLog, DocumentVersion, Comment, ReadingStage, Section } from './types';
 
-export const NAV_ITEMS: View[] = ['Dashboard', 'Drafting', 'Consensus', 'Monitoring', 'Audit Trail', 'Archive'];
+export const NAV_ITEMS: View[] = ['Dashboard', 'Reports', 'Drafting', 'Consensus', 'Monitoring', 'Documents', 'Audit Trail', 'Archive'];
 
-export const mockDocuments: Document[] = [
+export const initialMockDocuments: Document[] = [
   { 
     id: 'ORD-2023-001', 
     title: 'Zoning Regulation Update for Commercial Districts', 
@@ -107,12 +107,12 @@ export const mockDocuments: Document[] = [
   },
 ];
 
-export const mockArchivedDocuments: Document[] = [
+export const initialMockArchivedDocuments: Document[] = [
     { id: 'ORD-2022-051', title: 'Previous Year Budget Allocation', type: 'Ordinance', status: DocumentStatus.ARCHIVED, stage: ReadingStage.PASSED, sections: [{id: 'arc1', title: 'Final Budget', content: '<h2>Final Budget</h2><p>This document outlines the final budget allocations for the fiscal year 2022.</p>', status: 'locked'}], votes: { approve: 10, disapprove: 0, abstain: 0, absent: 0, totalMembers: 10 }, lastUpdated: '2022-12-15', createdBy: 'Admin', progress: 100 },
     { id: 'RES-2022-112', title: 'Historical Landmark Designation', type: 'Resolution', status: DocumentStatus.ARCHIVED, stage: ReadingStage.PASSED, sections: [{id: 'arc2', title: 'Resolution', content: '<p>A resolution to designate the Old City Hall as a historical landmark.</p>', status: 'locked'}], votes: { approve: 10, disapprove: 0, abstain: 0, absent: 0, totalMembers: 10 }, lastUpdated: '2022-11-01', createdBy: 'Admin', progress: 100 },
 ];
 
-export const mockAuditLogs: AuditLog[] = [
+export const initialMockAuditLogs: AuditLog[] = [
   { id: 1, user: 'Alice Johnson', userAvatar: 'https://i.pravatar.cc/150?u=alice', action: 'Voted on', target: 'ORD-2023-001', timestamp: '2023-10-27 11:05 AM' },
   { id: 2, user: 'Alice Johnson', userAvatar: 'https://i.pravatar.cc/150?u=alice', action: 'Locked Section 2 of', target: 'ORD-2023-001', timestamp: '2023-10-27 10:45 AM' },
   { id: 3, user: 'Bob Williams', userAvatar: 'https://i.pravatar.cc/150?u=bob', action: 'Approved', target: 'RES-2023-015', timestamp: '2023-10-27 09:30 AM' },
@@ -151,6 +151,12 @@ export const ArchiveIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 export const UsersIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+);
+export const ReportsIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 3v18h18" /><path d="M7 12v4h4" /><path d="M11 7v4h4" /><path d="M15 11v4h4" /></svg>
+);
+export const DocumentIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
 );
 export const SparklesIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.8 5.8-1.9-5.8-1.9Z"/></svg>

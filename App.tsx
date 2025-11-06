@@ -7,7 +7,13 @@ import MonitoringView from './components/MonitoringView';
 import AuditTrailView from './components/AuditTrailView';
 import ArchiveView from './components/ArchiveView';
 import ConsensusView from './components/ConsensusView';
+import ReportsView from './components/ReportsView';
+import DocumentsView from './components/DocumentsView';
 import { View } from './types';
+import { initDB } from './services/db';
+
+// Initialize the local storage "database" on app load
+initDB();
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('Dashboard');
@@ -16,12 +22,16 @@ const App: React.FC = () => {
     switch (currentView) {
       case 'Dashboard':
         return <Dashboard />;
+      case 'Reports':
+        return <ReportsView />;
       case 'Drafting':
         return <DraftingView />;
       case 'Consensus':
         return <ConsensusView />;
       case 'Monitoring':
         return <MonitoringView />;
+      case 'Documents':
+        return <DocumentsView />;
       case 'Audit Trail':
         return <AuditTrailView />;
       case 'Archive':

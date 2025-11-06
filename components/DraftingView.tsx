@@ -1,11 +1,13 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import Card from './common/Card';
-import { mockDocumentVersions, mockComments, mockDocuments } from '../constants';
+import { mockDocumentVersions, mockComments } from '../constants';
 import { SparklesIcon, ClockIcon, UserIcon, PlusIcon, ArrowLeftIcon, DraftingIcon, DotsVerticalIcon, ArchiveIcon, TrashIcon } from '../constants';
 import AIAssistant from './common/AIAssistant';
 import CreateDraftModal from './common/CreateDraftModal';
 import { Document, DocumentStatus, ReadingStage, Section } from '../types';
 import SectionEditor from './common/SectionEditor';
+import { getDocuments, saveDocuments } from '../services/db';
 
 // Action Menu for Draft Cards
 const DraftActionsMenu: React.FC<{ onArchive: () => void; onDelete: () => void; }> = ({ onArchive, onDelete }) => {
@@ -73,14 +75,14 @@ const DocumentEditor: React.FC<{ document: Document; onBack: () => void; onUpdat
         const updatedSections = document.sections.map(sec => 
             sec.id === sectionId ? { ...sec, content: newContent } : sec
         );
-        onUpdate({ ...document, sections: updatedSections });
+        onUpdate({ ...document, sections: updatedSections, lastUpdated: new Date().toISOString().split('T')[0] });
     };
 
     const handleToggleLock = (sectionId: string) => {
         const updatedSections = document.sections.map(sec =>
             sec.id === sectionId ? { ...sec, status: sec.status === 'editing' ? 'locked' : 'editing' } : sec
         );
-        onUpdate({ ...document, sections: updatedSections });
+        onUpdate({ ...document, sections: updatedSections, lastUpdated: new Date().toISOString().split('T')[0] });
     };
 
     const handleAddSection = () => {
@@ -90,7 +92,7 @@ const DocumentEditor: React.FC<{ document: Document; onBack: () => void; onUpdat
             content: `<p>Start writing content for this new section.</p>`,
             status: 'editing',
         };
-        onUpdate({ ...document, sections: [...document.sections, newSection] });
+        onUpdate({ ...document, sections: [...document.sections, newSection], lastUpdated: new Date().toISOString().split('T')[0] });
     };
 
     return (
@@ -109,7 +111,7 @@ const DocumentEditor: React.FC<{ document: Document; onBack: () => void; onUpdat
                                     </button>
                                     <div>
                                         <h1 className="text-2xl font-bold text-text-primary">{document.title}</h1>
-                                        <p className="text-sm text-text-secondary">{document.id} - Last saved 25 minutes ago</p>
+                                        <p className="text-sm text-text-secondary">{document.id} - Last updated {document.lastUpdated}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-2 flex-shrink-0">
@@ -205,53 +207,69 @@ const DocumentEditor: React.FC<{ document: Document; onBack: () => void; onUpdat
 
 // Main View component
 const DraftingView: React.FC = () => {
-    const [drafts, setDrafts] = useState<Document[]>(mockDocuments);
+    const [documents, setDocuments] = useState<Document[]>([]);
     const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
 
+    useEffect(() => {
+        setDocuments(getDocuments());
+    }, []);
+
     const handleCreateDraft = (newDraftData: { title: string; type: 'Ordinance' | 'Resolution' }) => {
+        // Fix: Explicitly typing `initialSection` as `Section` ensures that TypeScript
+        // infers the `status` property as the literal type 'editing' rather than the
+        // wider `string` type, resolving the assignment error.
+        const initialSection: Section = {
+            id: 'sec-initial',
+            title: 'Section 1: Purpose',
+            content: `<p>Provide the main purpose of this ${newDraftData.type.toLowerCase()} here.</p>`,
+            status: 'editing'
+        };
         const newDoc: Document = {
             id: `${newDraftData.type.substring(0, 3).toUpperCase()}-2023-${String(Math.floor(Math.random() * 900) + 100)}`,
             title: newDraftData.title,
             type: newDraftData.type,
             status: DocumentStatus.DRAFT,
             stage: ReadingStage.FIRST,
-            sections: [{
-                id: 'sec-initial',
-                title: 'Section 1: Purpose',
-                content: `<p>Provide the main purpose of this ${newDraftData.type.toLowerCase()} here.</p>`,
-                status: 'editing'
-            }],
+            sections: [initialSection],
             createdBy: 'Current User',
             lastUpdated: new Date().toISOString().split('T')[0],
             progress: 5,
             votes: { approve: 0, disapprove: 0, abstain: 0, absent: 10, totalMembers: 10 },
         };
-        setDrafts(prev => [newDoc, ...prev]);
+        const updatedDocuments = [newDoc, ...documents];
+        saveDocuments(updatedDocuments);
+        setDocuments(updatedDocuments);
         setCreateModalOpen(false);
         setSelectedDocument(newDoc);
     };
 
     const handleUpdateDocument = (updatedDoc: Document) => {
-        setDrafts(drafts.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc));
+        const updatedDocuments = documents.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc);
+        saveDocuments(updatedDocuments);
+        setDocuments(updatedDocuments);
         if (selectedDocument && selectedDocument.id === updatedDoc.id) {
             setSelectedDocument(updatedDoc);
         }
     };
 
     const handleDeleteDraft = (docId: string) => {
-        setDrafts(drafts.filter(doc => doc.id !== docId));
+        const updatedDocuments = documents.filter(doc => doc.id !== docId);
+        saveDocuments(updatedDocuments);
+        setDocuments(updatedDocuments);
     };
 
     const handleArchiveDraft = (docId: string) => {
-        setDrafts(drafts.map(doc => doc.id === docId ? { ...doc, status: DocumentStatus.ARCHIVED } : doc));
+        const updatedDocuments = documents.map(doc => doc.id === docId ? { ...doc, status: DocumentStatus.ARCHIVED } : doc);
+        saveDocuments(updatedDocuments);
+        setDocuments(updatedDocuments);
     };
 
     if (selectedDocument) {
         return <DocumentEditor document={selectedDocument} onBack={() => setSelectedDocument(null)} onUpdate={handleUpdateDocument} />;
     }
     
-    const visibleDrafts = drafts.filter(d => d.status !== DocumentStatus.ARCHIVED);
+    const visibleDrafts = documents.filter(d => d.status !== DocumentStatus.ARCHIVED);
     const draftDocs = visibleDrafts.filter(d => d.status === DocumentStatus.DRAFT);
     const inProgressDocs = visibleDrafts.filter(d => d.status === DocumentStatus.REVIEW);
     const approvedDocs = visibleDrafts.filter(d => d.status === DocumentStatus.APPROVED);
