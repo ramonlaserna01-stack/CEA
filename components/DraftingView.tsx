@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Card from './common/Card';
 import { mockDocumentVersions, mockComments } from '../constants';
 import { SparklesIcon, ClockIcon, UserIcon, PlusIcon, ArrowLeftIcon, DraftingIcon, DotsVerticalIcon, ArchiveIcon, TrashIcon } from '../constants';
@@ -9,7 +9,7 @@ import { Document, DocumentStatus, ReadingStage, Section } from '../types';
 import SectionEditor from './common/SectionEditor';
 import { getDocuments, saveDocuments } from '../services/db';
 
-// Action Menu for Draft Cards
+// Action Menu for Draft Table Rows
 const DraftActionsMenu: React.FC<{ onArchive: () => void; onDelete: () => void; }> = ({ onArchive, onDelete }) => {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -43,29 +43,6 @@ const DraftActionsMenu: React.FC<{ onArchive: () => void; onDelete: () => void; 
     );
 };
 
-// Draft Card Component
-const DraftCard: React.FC<{ doc: Document; onSelect: (doc: Document) => void; onArchive: (id: string) => void; onDelete: (id: string) => void;}> = ({ doc, onSelect, onArchive, onDelete }) => (
-    <Card 
-        className="cursor-pointer hover:shadow-lg transition-shadow duration-200 ease-in-out flex flex-col justify-between group"
-        onClick={() => onSelect(doc)}
-    >
-        <div>
-            <div className="flex justify-between items-start">
-                <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full mb-2 ${doc.type === 'Ordinance' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
-                    {doc.type}
-                </span>
-                <DraftActionsMenu onArchive={() => onArchive(doc.id)} onDelete={() => onDelete(doc.id)} />
-            </div>
-            <h3 className="text-lg font-bold text-text-primary mb-2 line-clamp-2 group-hover:text-primary">{doc.title}</h3>
-            <p className="text-sm text-text-secondary">ID: {doc.id}</p>
-        </div>
-        <div className="mt-4 pt-4 border-t">
-             <p className="text-xs text-text-secondary">Last Updated: {doc.lastUpdated}</p>
-             <p className="text-xs text-text-secondary">Status: <span className="font-semibold">{doc.status}</span></p>
-        </div>
-    </Card>
-);
-
 // Editor component
 const DocumentEditor: React.FC<{ document: Document; onBack: () => void; onUpdate: (updatedDoc: Document) => void; }> = ({ document, onBack, onUpdate }) => {
     const [activeTab, setActiveTab] = useState('discussion');
@@ -80,7 +57,7 @@ const DocumentEditor: React.FC<{ document: Document; onBack: () => void; onUpdat
 
     const handleToggleLock = (sectionId: string) => {
         const updatedSections = document.sections.map(sec =>
-            sec.id === sectionId ? { ...sec, status: sec.status === 'editing' ? 'locked' : 'editing' } : sec
+            sec.id === sectionId ? { ...sec, status: (sec.status === 'editing' ? 'locked' : 'editing') as Section['status'] } : sec
         );
         onUpdate({ ...document, sections: updatedSections, lastUpdated: new Date().toISOString().split('T')[0] });
     };
@@ -210,15 +187,13 @@ const DraftingView: React.FC = () => {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+    const [activeFilter, setActiveFilter] = useState<DocumentStatus | 'All'>('All');
 
     useEffect(() => {
         setDocuments(getDocuments());
     }, []);
 
     const handleCreateDraft = (newDraftData: { title: string; type: 'Ordinance' | 'Resolution' }) => {
-        // Fix: Explicitly typing `initialSection` as `Section` ensures that TypeScript
-        // infers the `status` property as the literal type 'editing' rather than the
-        // wider `string` type, resolving the assignment error.
         const initialSection: Section = {
             id: 'sec-initial',
             title: 'Section 1: Purpose',
@@ -264,41 +239,41 @@ const DraftingView: React.FC = () => {
         saveDocuments(updatedDocuments);
         setDocuments(updatedDocuments);
     };
+    
+    const FILTERS: { label: string, status: DocumentStatus | 'All' }[] = [
+        { label: 'All', status: 'All' },
+        { label: 'Drafts', status: DocumentStatus.DRAFT },
+        { label: 'In-Progress', status: DocumentStatus.REVIEW },
+        { label: 'Approved', status: DocumentStatus.APPROVED },
+        { label: 'Rejected', status: DocumentStatus.REJECTED },
+    ];
+
+    const displayedDocuments = useMemo(() => {
+        const nonArchived = documents.filter(doc => doc.status !== DocumentStatus.ARCHIVED);
+        if (activeFilter === 'All') {
+            return nonArchived;
+        }
+        return nonArchived.filter(doc => doc.status === activeFilter);
+    }, [documents, activeFilter]);
+    
+    const getStatusColor = (status: DocumentStatus) => {
+        switch (status) {
+            case DocumentStatus.APPROVED: return 'bg-green-100 text-green-800';
+            case DocumentStatus.REVIEW: return 'bg-yellow-100 text-yellow-800';
+            case DocumentStatus.DRAFT: return 'bg-blue-100 text-blue-800';
+            case DocumentStatus.REJECTED: return 'bg-red-100 text-red-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    };
 
     if (selectedDocument) {
         return <DocumentEditor document={selectedDocument} onBack={() => setSelectedDocument(null)} onUpdate={handleUpdateDocument} />;
     }
-    
-    const visibleDrafts = documents.filter(d => d.status !== DocumentStatus.ARCHIVED);
-    const draftDocs = visibleDrafts.filter(d => d.status === DocumentStatus.DRAFT);
-    const inProgressDocs = visibleDrafts.filter(d => d.status === DocumentStatus.REVIEW);
-    const approvedDocs = visibleDrafts.filter(d => d.status === DocumentStatus.APPROVED);
-    const rejectedDocs = visibleDrafts.filter(d => d.status === DocumentStatus.REJECTED);
-
-    const renderDraftSection = (title: string, docs: Document[]) => {
-        if (docs.length === 0) return null;
-        return (
-            <div className="space-y-4">
-                <h2 className="text-xl font-semibold text-text-primary border-b pb-2">{title}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {docs.map(doc => (
-                        <DraftCard 
-                            key={doc.id} 
-                            doc={doc} 
-                            onSelect={setSelectedDocument}
-                            onArchive={handleArchiveDraft}
-                            onDelete={handleDeleteDraft}
-                        />
-                    ))}
-                </div>
-            </div>
-        );
-    };
 
     return (
         <>
             {isCreateModalOpen && <CreateDraftModal onClose={() => setCreateModalOpen(false)} onCreate={handleCreateDraft} />}
-            <div className="space-y-8">
+            <div className="space-y-6">
                 <div className="flex justify-between items-center">
                     <h1 className="text-3xl font-bold text-text-primary">Drafting</h1>
                     <button 
@@ -309,25 +284,83 @@ const DraftingView: React.FC = () => {
                         Create New Draft
                     </button>
                 </div>
-                
-                {visibleDrafts.length > 0 ? (
-                    <div className="space-y-8">
-                        {renderDraftSection('Drafts', draftDocs)}
-                        {renderDraftSection('In-Progress', inProgressDocs)}
-                        {renderDraftSection('Approved', approvedDocs)}
-                        {renderDraftSection('Rejected', rejectedDocs)}
+
+                <div className="border-b border-gray-200">
+                    <div className="flex -mb-px space-x-4">
+                         {FILTERS.map(filter => (
+                            <button 
+                                key={filter.label}
+                                onClick={() => setActiveFilter(filter.status)}
+                                className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-colors ${
+                                    activeFilter === filter.status
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-text-secondary hover:text-text-primary hover:border-gray-300'
+                                }`}
+                            >
+                                {filter.label}
+                                <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${activeFilter === filter.status ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-600'}`}>
+                                    {filter.status === 'All' 
+                                        ? documents.filter(d => d.status !== DocumentStatus.ARCHIVED).length 
+                                        : documents.filter(d => d.status === filter.status).length
+                                    }
+                                </span>
+                            </button>
+                        ))}
                     </div>
-                ) : (
-                    <Card>
-                        <div className="text-center py-12">
-                            <DraftingIcon className="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 className="mt-2 text-lg font-medium text-text-primary">No Active Documents</h3>
-                            <p className="mt-1 text-sm text-text-secondary">
-                              Get started by creating a new ordinance or resolution.
-                            </p>
-                        </div>
-                    </Card>
-                )}
+                </div>
+
+                <Card className="p-0 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Title</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Type</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Author</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Status</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Last Updated</th>
+                                    <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {displayedDocuments.length > 0 ? displayedDocuments.map((doc) => (
+                                    <tr key={doc.id} onClick={() => setSelectedDocument(doc)} className="hover:bg-gray-50 cursor-pointer">
+                                        <td className="px-6 py-4 whitespace-normal max-w-sm">
+                                            <div className="font-semibold text-text-primary">{doc.title}</div>
+                                            <div className="text-xs text-text-secondary">{doc.id}</div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">{doc.type}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">{doc.createdBy}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(doc.status)}`}>
+                                                {doc.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">{doc.lastUpdated}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <DraftActionsMenu 
+                                                onArchive={() => handleArchiveDraft(doc.id)} 
+                                                onDelete={() => handleDeleteDraft(doc.id)} 
+                                            />
+                                        </td>
+                                    </tr>
+                                )) : (
+                                    <tr>
+                                        <td colSpan={6}>
+                                            <div className="text-center py-12">
+                                                <DraftingIcon className="mx-auto h-12 w-12 text-gray-400" />
+                                                <h3 className="mt-2 text-lg font-medium text-text-primary">No Documents Found</h3>
+                                                <p className="mt-1 text-sm text-text-secondary">
+                                                  There are no documents with the status "{activeFilter}".
+                                                </p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
             </div>
         </>
     );

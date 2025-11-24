@@ -42,16 +42,17 @@ const ReportsView: React.FC = () => {
 
     if (data.totalDocs > 0) {
         try {
+            // Fix: Changed property access to use enum members for better type safety, resolving a type inference issue.
             const prompt = `
                 Generate an executive summary for a legislative report with the following data:
                 - Time Period: ${filters.startDate || 'N/A'} to ${filters.endDate || 'N/A'}
                 - Total Documents: ${data.totalDocs}
                 - Ordinances: ${data.countsByType.Ordinance}
                 - Resolutions: ${data.countsByType.Resolution}
-                - Approved: ${data.countsByStatus.Approved}
-                - Rejected: ${data.countsByStatus.Rejected}
-                - In Review: ${data.countsByStatus['In Review']}
-                - Drafts: ${data.countsByStatus.Draft}
+                - Approved: ${data.countsByStatus[DocumentStatus.APPROVED]}
+                - Rejected: ${data.countsByStatus[DocumentStatus.REJECTED]}
+                - In Review: ${data.countsByStatus[DocumentStatus.REVIEW]}
+                - Drafts: ${data.countsByStatus[DocumentStatus.DRAFT]}
 
                 Summarize the key trends and statistics in a professional, neutral paragraph.
             `;
@@ -66,7 +67,8 @@ const ReportsView: React.FC = () => {
     setIsLoading(false);
   };
   
-  const statusChartData = reportData ? Object.entries(reportData.countsByStatus)
+  // Fix: Cast the result of Object.entries to [string, number][] to resolve a type inference issue where the value was treated as 'unknown'.
+  const statusChartData = reportData ? (Object.entries(reportData.countsByStatus) as [string, number][])
     .filter(([_, value]) => value > 0)
     .map(([name, value]) => ({ name, value })) : [];
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Card from './common/Card';
 import { getDocuments, saveDocuments } from '../services/db';
@@ -13,30 +14,59 @@ const VoteCounter: React.FC<{ label: string, count: number, color: string }> = (
 );
 
 const VotingCard: React.FC<{ doc: Document, onVote: (updatedDoc: Document) => void }> = ({ doc, onVote }) => {
-    const [document, setDocument] = useState(doc);
-    const [userVote, setUserVote] = useState<VoteOption | null>(null);
+    const [selectedVote, setSelectedVote] = useState<VoteOption | null>(null);
+    const [lockedVote, setLockedVote] = useState<VoteOption | null>(null);
 
-    const handleVote = (voteType: VoteOption) => {
-        if (userVote) return; // Can't vote twice
+    const handleSelectVote = (voteType: VoteOption) => {
+        if (lockedVote) return; // Don't allow selection if vote is locked
+        setSelectedVote(voteType);
+    };
 
+    const handleCastVote = () => {
+        if (!selectedVote) return;
+
+        // Increment the new vote
         const updatedDoc = {
-            ...document,
+            ...doc,
             votes: {
-                ...document.votes,
-                [voteType]: document.votes[voteType] + 1,
+                ...doc.votes,
+                [selectedVote]: doc.votes[selectedVote] + 1,
+            }
+        };
+        
+        setLockedVote(selectedVote);
+        onVote(updatedDoc);
+    };
+
+    const handleEditVote = () => {
+        if (!lockedVote) return;
+
+        // Decrement the old vote
+        const updatedDoc = {
+            ...doc,
+            votes: {
+                ...doc.votes,
+                [lockedVote]: doc.votes[lockedVote] - 1,
             }
         };
 
-        setDocument(updatedDoc);
-        setUserVote(voteType);
+        setSelectedVote(lockedVote); // Pre-select their old choice
+        setLockedVote(null);
         onVote(updatedDoc);
     };
 
     const getButtonClasses = (voteType: VoteOption) => {
         const baseClasses = "w-full font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none";
-        if (userVote) {
-            return `${baseClasses} ${userVote === voteType ? `ring-4 ring-offset-2 ring-primary` : 'bg-gray-300 text-gray-500'}`;
+        
+        if (lockedVote) {
+             return `${baseClasses} ${lockedVote === voteType ? `ring-4 ring-offset-2 ring-primary` : 'bg-gray-300 text-gray-500'}`;
         }
+
+        if (selectedVote === voteType) {
+            const colorClass = voteType === 'approve' ? 'bg-green-500' : voteType === 'disapprove' ? 'bg-red-500' : 'bg-yellow-500';
+            return `${baseClasses} ring-4 ring-offset-2 ring-primary ${colorClass} text-white`;
+        }
+
         switch (voteType) {
             case 'approve': return `${baseClasses} bg-green-500 text-white hover:bg-green-600`;
             case 'disapprove': return `${baseClasses} bg-red-500 text-white hover:bg-red-600`;
@@ -47,27 +77,51 @@ const VotingCard: React.FC<{ doc: Document, onVote: (updatedDoc: Document) => vo
     return (
         <Card>
             <div className="border-b pb-4 mb-4">
-                <h2 className="text-xl font-bold text-text-primary">{document.title}</h2>
-                <p className="text-sm text-text-secondary">{document.id} - {document.stage}</p>
+                <h2 className="text-xl font-bold text-text-primary">{doc.title}</h2>
+                <p className="text-sm text-text-secondary">{doc.id} - {doc.stage}</p>
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-center">
-                <VoteCounter label="Approve" count={document.votes.approve} color="text-green-500" />
-                <VoteCounter label="Disapprove" count={document.votes.disapprove} color="text-red-500" />
-                <VoteCounter label="Abstain" count={document.votes.abstain} color="text-yellow-500" />
-                <VoteCounter label="Absent" count={document.votes.absent} color="text-gray-500" />
+                <VoteCounter label="Approve" count={doc.votes.approve} color="text-green-500" />
+                <VoteCounter label="Disapprove" count={doc.votes.disapprove} color="text-red-500" />
+                <VoteCounter label="Abstain" count={doc.votes.abstain} color="text-yellow-500" />
+                <VoteCounter label="Absent" count={doc.votes.absent} color="text-gray-500" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <button onClick={() => handleVote('approve')} disabled={!!userVote} className={getButtonClasses('approve')}>
-                    Approve
-                </button>
-                <button onClick={() => handleVote('disapprove')} disabled={!!userVote} className={getButtonClasses('disapprove')}>
-                    Disapprove
-                </button>
-                <button onClick={() => handleVote('abstain')} disabled={!!userVote} className={getButtonClasses('abstain')}>
-                    Abstain
-                </button>
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button onClick={() => handleSelectVote('approve')} disabled={!!lockedVote} className={getButtonClasses('approve')}>
+                        Approve
+                    </button>
+                    <button onClick={() => handleSelectVote('disapprove')} disabled={!!lockedVote} className={getButtonClasses('disapprove')}>
+                        Disapprove
+                    </button>
+                    <button onClick={() => handleSelectVote('abstain')} disabled={!!lockedVote} className={getButtonClasses('abstain')}>
+                        Abstain
+                    </button>
+                </div>
+
+                <div className="pt-2 text-center">
+                    {lockedVote ? (
+                        <div className="flex items-center justify-center space-x-4">
+                            <p className="font-semibold text-green-600">✓ Vote Cast!</p>
+                            <button 
+                                onClick={handleEditVote} 
+                                className="px-6 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-text-secondary hover:bg-gray-50"
+                            >
+                                Edit Vote
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handleCastVote}
+                            disabled={!selectedVote}
+                            className="w-full md:w-auto px-10 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-focus disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                            Cast Final Vote
+                        </button>
+                    )}
+                </div>
             </div>
         </Card>
     );
